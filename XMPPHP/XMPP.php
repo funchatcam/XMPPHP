@@ -521,4 +521,69 @@ class XMPPHP_XMPP extends XMPPHP_XMLStream {
     $this->event('vcard', $vcard_array);
   }
 
+    /**
+     * Register a new user.
+     *
+     * @param $entity
+     *       Entity we want information about
+     */
+    public function registerNewUser($username, $password = NULL){
+        //echo "ananda";
+        //exit;
+        if (!isset($password))
+            $password = $this->genRandomString(15);
+
+        $id = 'reg_' . $this->getID();
+        $xml = "<iq type='set' id='$id'>
+                            <query xmlns='jabber:iq:register'>
+                                <username>" . $username . "</username>
+                                <password>" . $password . "</password>
+                                <email></email>
+                                <name></name>
+                            </query>
+                        </iq>";
+
+        $this->addIdHandler($id, 'register_new_user_handler');
+        $this->send($xml);
+    }
+
+    /**
+     * Handler for new user registration
+     *
+     * @param XML Object $xml
+     */
+    protected function register_new_user_handler($xml){
+        //dpm($xml);
+        //var_dump($xml);
+        switch ($xml->attrs['type']) {
+            case 'error':
+                $this->event('new_user_registered', 'error');
+                break;
+            case 'result':
+                // dpm($xml->subs);
+                $query = $xml->sub('query');
+                $username='';
+                $password='';
+                if(!is_array($query->subs)) {
+                    foreach ($query->sub as $key => $value) {
+                        switch ($value->name) {
+                            case 'username':
+                                $username = $value->data;
+                                break;
+
+                            case 'password':
+                                $password = $value->data;
+                                break;
+                        }
+                    }
+                }
+
+                $this->event('new_user_registered', array('jid' => $username . "@{$this->server}", 'password' => $password));
+
+            default:
+                $this->event('new_user_registered', 'default');
+        }
+    }
+
 }
+
